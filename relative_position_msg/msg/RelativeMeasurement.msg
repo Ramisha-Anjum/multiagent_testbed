@@ -1,0 +1,2 @@
+int32 neighbor_id
+geometry_msgs/Vector3 relative_position
