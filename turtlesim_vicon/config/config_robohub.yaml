@@ -1,0 +1,22 @@
+# Multi-agent formation communication network configuration
+network:
+  num_agents: 5
+
+  # Bidirectional communication pairs with desired inter-agent distance
+  edges:
+    - {i: 1, j: 2, distance: 6.78616975915}
+    - {i: 1, j: 5, distance: 6.78616975915}
+    - {i: 2, j: 3, distance: 6.78616975915}
+    - {i: 2, j: 5, distance: 10.9802533237}
+    - {i: 3, j: 4, distance: 6.78616975915}
+    - {i: 3, j: 5, distance: 10.9802533237}
+    - {i: 4, j: 5, distance: 6.78616975915}
+
+  # Initial positions at bringup (list of [x, y])
+  initial_position:
+    - {x: -23.43, y: 8.85}
+    - {x: -19.32, y: 14.25}
+    - {x: -12.67, y: 11.52}
+    - {x: -13.37, y: 4.78}
+    - {x: -19.54, y: 3.505}
+
