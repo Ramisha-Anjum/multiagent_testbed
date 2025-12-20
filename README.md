@@ -18,6 +18,7 @@ git clone https://github.com/Ramisha-Anjum/multiagent_testbed.git
 ```
     
 ## 3- Build the package
+There are multiple config.yaml file in the config folder. Use the one needed. config_sim.yaml is for turtlesim simulator. config_robohub.yaml is for real experiment in Robohub.
 
 ```sh
 colcon build --symlink-install       ## To build all the packages in the entire workspace
