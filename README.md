@@ -2,10 +2,9 @@
 
 ## 1- Create a workspace
 
-    ```sh
-    mkdir multiagent_ws    ## name this directory folder the way you like
-    cd multiagent_ws
-    ```
+    mkdir multiagent_ws/src    ## name this directory folder the way you like
+    cd multiagent_ws/src
+    
     
 ## 2- Run the Formation Controller
 
