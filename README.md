@@ -21,11 +21,11 @@ git clone https://github.com/Ramisha-Anjum/multiagent_testbed.git
 
 ```sh
 colcon build --symlink-install       ## To build all the packages in the entire workspace
-colcon build --packages-select turtlesim_vicon      ## name this package the way you like
+colcon build --packages-select turtlesim_vicon      ## To build only turtlesim_vicon (Package_name) package
 source ~/multiagent_ws/install/setup.bash
 ```
 
-## 4- Now you are ready to launch the nodes inside the turtlesim_vicon package
+## 4- Launch the nodes inside the turtlesim_vicon package
 
 ```sh
 ros2 launch turtlesim_vicon multiagent.launch.py          ## To launch with turtlesim
