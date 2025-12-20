@@ -1,7 +1,8 @@
 # multiagent_testbed
 
-Ubuntu: 22.04
-ROS DISTRO: ROS2 Humble
+### OS Distributor: Ubuntu 22.04
+
+### ROS DISTRO: ROS2 Humble
 
 ## 1- Create a workspace
 
@@ -23,9 +24,10 @@ colcon build --symlink-install       ## To build all the packages in the entire 
 colcon build --packages-select turtlesim_vicon      ## name this package the way you like
 source ~/multiagent_ws/install/setup.bash
 ```
+
 ## 4- Now you are ready to launch the nodes inside the turtlesim_vicon package
-  
-    ```sh
-    ros2 launch turtlesim_vicon multiagent.launch.py          ## To launch with turtlesim
-    ros2 launch turtlesim_vicon multiagent_vicon_pipe.launch.py    ## To launch with vicon
-    ```
+
+```sh
+ros2 launch turtlesim_vicon multiagent.launch.py          ## To launch with turtlesim
+ros2 launch turtlesim_vicon multiagent_vicon_pipe.launch.py    ## To launch with vicon
+```
