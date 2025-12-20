@@ -3,8 +3,10 @@
 ## 1- Create a workspace
 
     ```sh
+    
     mkdir multiagent_ws    ## name this directory folder the way you like
     cd multiagent_ws
+    
     ```
     
 ## 2- Run the Formation Controller
