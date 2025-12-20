@@ -36,7 +36,7 @@ class RelativeNeighborsPSNode(Node):
         self.declare_parameter('frame_id', 'world')                     # frame_id to stamp on output
 
         # Resolve config path
-        pkg_share = get_package_share_directory('multiagent_est_con')
+        pkg_share = get_package_share_directory('turtlesim_vicon')
         cfg_file = self.get_parameter('config_file').get_parameter_value().string_value
         cfg_path = os.path.join(pkg_share, 'config', cfg_file)
         if not os.path.exists(cfg_path):
