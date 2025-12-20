@@ -11,13 +11,13 @@ mkdir -p ~/multiagent_ws/src    ## name this directory folder the way you like
 cd ~/multiagent_ws/src
 ```
 
-## 2- Clone the multiagent_testbed package
+## 2- Clone the package
 
 ```sh
 git clone https://github.com/Ramisha-Anjum/multiagent_testbed.git
 ```
     
-## 3- Build Package
+## 3- Build the package
 
 ```sh
 colcon build --symlink-install       ## To build all the packages in the entire workspace
@@ -25,7 +25,7 @@ colcon build --packages-select turtlesim_vicon      ## To build only turtlesim_v
 source ~/multiagent_ws/install/setup.bash
 ```
 
-## 4- Launch the nodes inside the turtlesim_vicon package
+## 4- Run the launch files
 
 ```sh
 ros2 launch turtlesim_vicon multiagent.launch.py          ## To launch with turtlesim
