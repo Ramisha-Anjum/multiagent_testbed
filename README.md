@@ -2,8 +2,10 @@
 
 ## 1- Create a workspace
 
-    mkdir multiagent_ws/src    ## name this directory folder the way you like
-    cd multiagent_ws/src
+    mkdir -p ~/multiagent_ws/src    ## name this directory folder the way you like
+    cd ~/multiagent_ws
+    source /opt/ros/humble/setup.bash    ##If you keep it in your .bashrc file you don't have to run it again
+
     
     
 ## 2- Run the Formation Controller
