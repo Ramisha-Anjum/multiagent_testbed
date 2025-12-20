@@ -1,0 +1,14 @@
+# pose_fusion dependencies
+std_msgs:
+  debian: ros-$ROS_DISTRO-std-msgs
+tf2_msgs:
+  debian: ros-$ROS_DISTRO-tf2-msgs
+tf2_ros:
+  debian: ros-$ROS_DISTRO-tf2-ros
+geometry_msgs:
+  debian: ros-$ROS_DISTRO-geometry-msgs
+nav_msgs:
+  debian: ros-$ROS_DISTRO-nav-msgs
+python-packages:
+  - asrl-pylgmath
+  - asrl-pysteam  
