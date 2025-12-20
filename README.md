@@ -16,28 +16,16 @@
     git clone https://github.com/Ramisha-Anjum/multiagent_testbed.git
     ```
     
-  - **Source the controller package and PX4 simulator**
+  - **Build Package**
 
     ```sh
-    cd GDLS-Multi-Vehicle-Formation/formation_pkg
-    source devel/setup.bash
-
-    ## Enusre to navigate to the Px4-Autopilot folder directory
-    cd multi-vehicle_Formation/PX4-Autopilot
-
-    source Tools/simulation/gazebo-classic/setup_gazebo.bash $(pwd) $(pwd)/build/px4_sitl_default
-  
-    export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$(pwd):$(pwd)/Tools/simulation/gazebo-classic/sitl_gazebo-classic
+    colcon build --symlink-install       ## To build all the packages in the entire workspace
+    colcon build --packages-select turtlesim_vicon      ## name this package the way you like
+    source ~/multiagent_ws/install/setup.bash
     ```
-  - **Now you are ready to launch the simulator that deploys a warthog and 3 Iris Drones**
+  - **Now you are ready to launch the nodes inside this package**
   
     ```sh
-    roslaunch formation_offb main.launch
+    ros2 launch turtlesim_vicon multiagent.launch.py          ## To launch with turtlesim
+    ros2 launch turtlesim_vicon multiagent_vicon_pipe.launch.py    ## To launch with vicon
     ```
-
-
-Launch turtlesim
-
-or 
-
-Lunch vicon
