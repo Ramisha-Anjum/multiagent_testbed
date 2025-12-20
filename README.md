@@ -8,7 +8,7 @@
 
 ```sh
 mkdir -p ~/multiagent_ws/src    ## name this directory folder the way you like
-cd ~/multiagent_ws
+cd ~/multiagent_ws/src
 ```
 
 ## 2- Clone the multiagent_testbed package
