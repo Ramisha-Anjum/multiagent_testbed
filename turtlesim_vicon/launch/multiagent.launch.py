@@ -8,7 +8,7 @@ import os, yaml
 
 def generate_launch_description():
     pkg_multiagent = get_package_share_directory('turtlesim_vicon')
-    config_file = os.path.join(pkg_multiagent, 'config', 'config.yaml')
+    config_file = os.path.join(pkg_multiagent, 'config', 'config_sim.yaml')
 
     with open(config_file, 'r') as f:
         data = yaml.safe_load(f)
@@ -45,8 +45,8 @@ def generate_launch_description():
         ))
 
     
-    t2p_node = Node(package='turtlesim_vicon', executable='turtle2posestamped.py', name='t2p')
-    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_emulator.py', name='sensor')
+    t2p_node = Node(package='turtlesim_vicon', executable='turtle2posestamped', name='t2p')
+    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_emulator', name='sensor')
     #algorithm_node = Node(package='multiagent_est_con', executable='algorithm.py', name= 'algorithm')
     ld.add_action(t2p_node)
     ld.add_action(sensor_node)

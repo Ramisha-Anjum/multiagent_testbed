@@ -30,7 +30,7 @@ class TurtlesimPoseBridge(Node):
         super().__init__('turtlesim_pose_bridge')
 
         # Parameters
-        self.declare_parameter('config_file', 'config.yaml')
+        self.declare_parameter('config_file', 'config_sim.yaml')
         self.declare_parameter('output_topic_template', '/agent{}/pose')
         self.declare_parameter('frame_id', 'world')
 

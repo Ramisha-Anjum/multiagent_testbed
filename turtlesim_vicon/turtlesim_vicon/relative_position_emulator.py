@@ -30,7 +30,7 @@ class RelativeNeighborsPSNode(Node):
         super().__init__('relative_neighbors_ps_node')
 
         # Parameters
-        self.declare_parameter('config_file', 'config.yaml')            # under multiagent_est_con/config/
+        self.declare_parameter('config_file', 'config_sim.yaml')            # under multiagent_est_con/config/
         self.declare_parameter('publish_rate_hz', 10.0)
         self.declare_parameter('pose_topic_template', '/agent{}/pose')  # PoseStamped per agent
         self.declare_parameter('frame_id', 'world')                     # frame_id to stamp on output
