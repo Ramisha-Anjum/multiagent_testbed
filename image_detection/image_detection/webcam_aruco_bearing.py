@@ -69,9 +69,18 @@ class WebcamArucoBearing(Node):
 
         self.get_logger().info("webcam_aruco_bearing node started.")
 
+        self.last_log_time = self.get_clock().now().nanoseconds * 1e-9
+
+
     # ----------------- Main image callback -----------------
 
     def image_callback(self, msg: Image):
+
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if now - self.last_log_time > 1.0:
+            self.get_logger().info("Receiving frames...")
+            self.last_log_time = now
+
         """Process incoming webcam image, detect ArUco, compute bearing + marker."""
         # Convert ROS image -> OpenCV
         try:
@@ -83,20 +92,25 @@ class WebcamArucoBearing(Node):
         # Convert to grayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        # # ArUco detection
-        # aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        # aruco_params = cv2.aruco.DetectorParameters_create()
-        # corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
-
-        # --- ArUco detection (new-style API) ---
+        # ArUco detection
         aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-        aruco_params = cv2.aruco.DetectorParameters()
-        detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
-        corners, ids, _ = detector.detectMarkers(gray)
+        aruco_params = cv2.aruco.DetectorParameters_create()
+        corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict, parameters=aruco_params)
 
-        if ids is None:
+
+        # # --- ArUco detection (new-style API) ---
+        # aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+        # aruco_params = cv2.aruco.DetectorParameters()
+        # detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
+        # corners, ids, _ = detector.detectMarkers(gray)
+
+        if ids is None or len(ids) == 0:
             self.get_logger().info("No ArUco markers detected in webcam image")
             return
+
+        # if ids is None:
+        #     self.get_logger().info("No ArUco markers detected in webcam image")
+        #     return
 
         ids_flat = ids.flatten()
 
