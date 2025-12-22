@@ -37,5 +37,5 @@ The target object has an aruco marker set on it. And the camera (webcam) detects
 
 ```sh
 ros2 run v4l2_camera v4l2_camera_node          ## In Terminal 1
-ros2 run aruco_bearing webcam_aruco_bearing          ## Run your node in Terminal 2
+ros2 run image_detection webcam_aruco_bearing          ## Run your node in Terminal 2
 ```
