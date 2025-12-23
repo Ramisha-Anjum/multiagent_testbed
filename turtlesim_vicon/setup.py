@@ -29,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'relative_position_emulator = turtlesim_vicon.relative_position_emulator:main',
+            'relative_position_bearing_emulator = turtlesim_vicon.relative_position_bearing_emulator:main',
             'turtle2posestamped = turtlesim_vicon.turtle2posestamped:main',
         ],
     },

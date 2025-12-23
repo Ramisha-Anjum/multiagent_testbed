@@ -46,7 +46,8 @@ def generate_launch_description():
 
     
     t2p_node = Node(package='turtlesim_vicon', executable='turtle2posestamped', name='t2p')
-    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_emulator', name='sensor')
+    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_bearing_emulator', name='sensor')
+    #sensor_node = Node(package='turtlesim_vicon', executable='relative_position_emulator', name='sensor')
     #algorithm_node = Node(package='multiagent_est_con', executable='algorithm.py', name= 'algorithm')
     ld.add_action(t2p_node)
     ld.add_action(sensor_node)

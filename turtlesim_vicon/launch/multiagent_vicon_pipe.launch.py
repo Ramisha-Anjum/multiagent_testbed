@@ -83,7 +83,7 @@ def generate_launch_description():
     #     output='screen',
     #     parameters=[params_file],
     # )
-    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_emulator', name='sensor')
+    sensor_node = Node(package='turtlesim_vicon', executable='relative_position_bearing_emulator', name='sensor')
     
     # ------------------------------------------------------------
     # Build LaunchDescription
