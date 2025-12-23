@@ -129,7 +129,7 @@ class RelativeNeighborsPSNode(Node):
                     m.relative_bearing = Vector3(x=dx/dij, y=dy/dij, z=0.0)
                 else:
                     # i and j at same position (shouldn't happen, but safe)
-                    m.relative_bearing = Vector3(x=0.0, y=0.0, z=0.0)
+                    m.relative_bearing = Vector3(x=math.inf, y=math.inf, z=math.inf)
 
 
                 # m.relative_position = Vector3(x=xj - xi, y=yj - yi, z=0.0)
