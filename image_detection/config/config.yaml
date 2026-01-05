@@ -1,0 +1,20 @@
+# Multi-agent formation communication network configuration
+network:
+  num_agents: 3
+
+  # One-directional communication pairs
+  edges:
+    - {i: 1, j: 2}
+    - {i: 2, j: 3}
+    - {i: 3, j: 1}
+  
+  # Initial positions at bringup (list of [x, y])
+  initial_position:
+    - {x: 0.0, y: 0.0}
+    - {x: 0.0, y: 1.0}
+    - {x: 1.0, y: 2.0}
+
+
+  # initial_orientation:
+  #   - {theta: 0.0}
+  #   - {theta: 0.0}
