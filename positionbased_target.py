@@ -27,7 +27,7 @@ from relative_position_msg.msg import RelativeNeighbors, RelativeMeasurement
 kp = 2.0
 kw = 1.0
 ki = 0.2
-t = 0
+# t1 = 0
 
 class PositionbasedTarget(Node):
     def __init__(self):
@@ -81,13 +81,13 @@ class PositionbasedTarget(Node):
             self.get_logger().info(
             f"Positions to calculate b_ij_star from config: positions={self.positions}")
 
-            for j in sorted(self.adj.get(i, [])):
+            # for j in sorted(self.adj.get(i, [])):
 
-                d = self.positions[j] - self.positions[i]
-                norm_d = np.linalg.norm(d)
-                if norm_d < 1e-6:
-                    continue
-                self.b_ij_star = d / norm_d
+            #     d = self.positions[j] - self.positions[i]
+            #     norm_d = np.linalg.norm(d)
+            #     if norm_d < 1e-6:
+            #         continue
+            #     self.b_ij_star = d / norm_d
         
         # Pose storage: (x, y) from PoseStamped
         self.poses: Dict[int, Tuple[float, float, float]] = {}
@@ -135,6 +135,7 @@ class PositionbasedTarget(Node):
 
         # ---------------- Timer ----------------
         self.period = 0.05  # 20 Hz
+        self.t1 = 0
         self.timer = self.create_timer(self.period, self.timer_callback)
 
         self.get_logger().info("positionbased_target node started.")
@@ -203,7 +204,7 @@ class PositionbasedTarget(Node):
         # )
         sol = solve_ivp(
         fun=lambda t, y: self.beta_dot_world_ivp(y, be_i, yaw_i),
-        t_span=(t, dt),
+        t_span=(self.t1, dt),
         y0=beta0,
         method="RK45",
         max_step=dt,
@@ -252,18 +253,18 @@ class PositionbasedTarget(Node):
 
 
 
-                # d = self.positions[j] - self.positions[i]
-                # norm_d = np.linalg.norm(d)
-                # if norm_d < 1e-6:
-                #     continue
-                # b_ij_star = d / norm_d
+                d = self.positions[j] - self.positions[i]
+                norm_d = np.linalg.norm(d)
+                if norm_d < 1e-6:
+                    continue
+                b_ij_star = d / norm_d
 
-                be_i += (b_ij_world - self.b_ij_star)
+                be_i += (b_ij_world - b_ij_star)
                 self.get_logger().info(f"Bearing Error between robot i={i} and robot j={j} is ={be_i}")
 
             # Step 3 integrate beta_i
             self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
-            self.get_logger().info(f"for robot i={i}, beta_i={self.betai[i]}")
+            self.get_logger().info(f"for robot t1 = 0i={i}, beta_i={self.betai[i]}")
 
             # beta_i = (p @ be_i) - (Pperp @ self.betai[i])
             # beta[idx] = beta_i
@@ -276,7 +277,7 @@ class PositionbasedTarget(Node):
             cmd.linear.x = float(v)
             cmd.angular.z = float(w)
             self.pubs[i].publish(cmd)
-            t = t + dt
+            self.t1 = self.t1 + dt
 
 
     # def timer_callback(self):
