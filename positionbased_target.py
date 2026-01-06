@@ -27,12 +27,7 @@ from relative_position_msg.msg import RelativeNeighbors, RelativeMeasurement
 kp = 2.0
 kw = 1.0
 ki = 0.2
-rho = 1.0
-
-# def rot2d(theta: float) -> np.ndarray:
-#     c = math.cos(theta); s = math.sin(theta)
-#     return np.array([[c, -s],
-#                      [s,  c]], dtype=float)
+t = 0
 
 class PositionbasedTarget(Node):
     def __init__(self):
@@ -83,10 +78,16 @@ class PositionbasedTarget(Node):
             x = float(p["x"])
             y = float(p["y"])
             self.positions[i] = np.array([x, y], dtype=float)
+            self.get_logger().info(
+            f"Positions to calculate b_ij_star from config: positions={self.positions}")
 
-        self.get_logger().info(
-            f"Positions to calculate b_ij_star from config: positions={self.positions}"
-        )
+            for j in sorted(self.adj.get(i, [])):
+
+                d = self.positions[j] - self.positions[i]
+                norm_d = np.linalg.norm(d)
+                if norm_d < 1e-6:
+                    continue
+                self.b_ij_star = d / norm_d
         
         # Pose storage: (x, y) from PoseStamped
         self.poses: Dict[int, Tuple[float, float, float]] = {}
@@ -181,7 +182,7 @@ class PositionbasedTarget(Node):
         Pperp = np.outer(phi_perp, phi_perp) # 2x2
 
         beta = beta.reshape(2,)
-        return (-rho * (p @ be_i) - (Pperp @ beta)).reshape(2,)
+        return ((p @ be_i) - (Pperp @ beta))
 
 
     def integrate_beta(self, i, be_i, yaw_i, dt) -> np.ndarray:
@@ -202,7 +203,7 @@ class PositionbasedTarget(Node):
         # )
         sol = solve_ivp(
         fun=lambda t, y: self.beta_dot_world_ivp(y, be_i, yaw_i),
-        t_span=(0.0, dt),
+        t_span=(t, dt),
         y0=beta0,
         method="RK45",
         max_step=dt,
@@ -248,26 +249,16 @@ class PositionbasedTarget(Node):
                     continue
 
                 b_ij_world = np.array(self.b_ij[i][j], dtype=float)
-                # b_ij_body = np.array(self.b_ij[i][j], dtype=float)
 
-                # # normalize (important)
-                # nb = np.linalg.norm(b_ij_body)
-                # if nb < 1e-9:
+
+
+                # d = self.positions[j] - self.positions[i]
+                # norm_d = np.linalg.norm(d)
+                # if norm_d < 1e-6:
                 #     continue
-                # b_ij_body = b_ij_body / nb
+                # b_ij_star = d / norm_d
 
-                # # rotate to world using yaw_i
-                # R_plus = rot2d(yaw_i)
-                # b_ij_world = R_plus @ b_ij_body
-
-
-                d = self.positions[j] - self.positions[i]
-                norm_d = np.linalg.norm(d)
-                if norm_d < 1e-6:
-                    continue
-                b_ij_star = d / norm_d
-
-                be_i += (b_ij_world - b_ij_star)
+                be_i += (b_ij_world - self.b_ij_star)
                 self.get_logger().info(f"Bearing Error between robot i={i} and robot j={j} is ={be_i}")
 
             # Step 3 integrate beta_i
@@ -285,6 +276,7 @@ class PositionbasedTarget(Node):
             cmd.linear.x = float(v)
             cmd.angular.z = float(w)
             self.pubs[i].publish(cmd)
+            t = t + dt
 
 
     # def timer_callback(self):
