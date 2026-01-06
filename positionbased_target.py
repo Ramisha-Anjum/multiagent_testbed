@@ -23,11 +23,16 @@ from relative_position_msg.msg import RelativeNeighbors, RelativeMeasurement
 # from cv_bridge import CvBridge
 
 
-# # Gains (tune later)
-# kp = 0.8
-# kw = 1.5
-# ki = 0.2
-# rho = 1.0
+# Gains (tune later)
+kp = 2.0
+kw = 1.0
+ki = 0.2
+rho = 1.0
+
+# def rot2d(theta: float) -> np.ndarray:
+#     c = math.cos(theta); s = math.sin(theta)
+#     return np.array([[c, -s],
+#                      [s,  c]], dtype=float)
 
 class PositionbasedTarget(Node):
     def __init__(self):
@@ -65,31 +70,34 @@ class PositionbasedTarget(Node):
 
             # directed adjacency
             self.adj[i].add(j)
+            # self.adj[j].add(i)
 
         
         # ---------------- State storage ----------------
-        # World positions and yaws for each robot
+        # World positions for each robot
         self.positions: Dict[int, np.ndarray] = {}
-        self.yaws: Dict[int, float] = {}
 
-        # Initialize positions and yaw from config so we have something even      
-        # if /robotX/pose is not publishing yet.
-        init_positions = net.get("initial_position", [])
-        for i, p in enumerate(init_positions, start=1):
+        # Positions of each robots to calculate b_ij_star from config      
+        position = net.get("position", [])
+        for i, p in enumerate(position, start=1):
             x = float(p["x"])
             y = float(p["y"])
             self.positions[i] = np.array([x, y], dtype=float)
-            self.yaws[i] = 0.0  # assume facing along +x initially
+
         self.get_logger().info(
-            f"Initialized from config: positions={self.positions}, yaws={self.yaws}"
+            f"Positions to calculate b_ij_star from config: positions={self.positions}"
         )
         
         # Pose storage: (x, y) from PoseStamped
-        self.poses: Dict[int, Tuple[float, float, float, float]] = {}
+        self.poses: Dict[int, Tuple[float, float, float]] = {}
         self.measurement = {}
 
         # World-frame unit vectors from i to j:
-        self.b_ij: Dict[Tuple[int, int], Tuple[float, float, float, float]] = {}
+        # self.b_ij: Dict[Tuple[int, int], Tuple[float, float, float]] = {}
+        # Bearings dictionary: b_ij[i][j] = [bx, by]
+        self.b_ij: Dict[int, Dict[int, list]] = {}
+
+
     
         # Subscriptions
         pose_topic_template = self.get_parameter('pose_topic_template').get_parameter_value().string_value
@@ -121,9 +129,8 @@ class PositionbasedTarget(Node):
             self.pubs[i] = self.create_publisher(Twist, topic, 10)
         
 
-        # # beta_ij[(i, j)] = b_ij expressed in robot i body frame (optional)
-        # #self.beta_ij: Dict[Tuple[int, int], np.ndarray] = {}
-        # self.betai: Dict[int, np.ndarray] = {i: np.zeros(2, dtype=float) for i in range(1, self.num_agents + 1)}
+        
+        self.betai: Dict[int, np.ndarray] = {i: np.zeros(2, dtype=float) for i in range(1, self.num_agents + 1)}
 
         # ---------------- Timer ----------------
         self.period = 0.05  # 20 Hz
@@ -132,35 +139,9 @@ class PositionbasedTarget(Node):
         self.get_logger().info("positionbased_target node started.")
 
 
-    # --------- Helpers ---------
-
-    # @staticmethod
-    # def quaternion_to_yaw(q: Quaternion) -> float:
-    #     """Convert quaternion to yaw (rotation around z)."""
-    #     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
-    #     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-    #     return math.atan2(siny_cosp, cosy_cosp)
-
-    # @staticmethod
-    # def quaternion_to_yaw(w,x,y,z) -> float:
-    #     """Convert quaternion to yaw (rotation around z)."""
-    #     siny_cosp = 2.0 * (w * z + x * y)
-    #     cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
-    #     return math.atan2(siny_cosp, cosy_cosp)
-    
-    # --------- Callbacks ---------
-
-    # def pose_callback(self, agent_id: int, msg: PoseStamped):
-    #     """Store world position of each robot i."""
-    #     pos = msg.pose.position
-    #     #q = msg.pose.orientation
-
-    #     self.positions[agent_id] = np.array([float(pos.x), float(pos.y)], dtype=float)
-    #     #self.yaws[agent_id] = self.quaternion_to_yaw(q)
-
     def pose_callback(self, agent_id: int, msg: PoseStamped):
         # Assume z = 0, extract x,y
-        # Projecting x axis to 2D for orientation vector
+        # For orientation of the robot
         quat = msg.pose.orientation
         w, x, y, z = quat.w, quat.x, quat.y, quat.z
         
@@ -171,8 +152,9 @@ class PositionbasedTarget(Node):
             q_real, q_imag = 1.0, 0.0
         else:
             q_real /= norm; q_imag /= norm
+        theta = math.atan2(q_imag, q_real)
         # storing poses for each agent
-        self.poses[agent_id] = (float(msg.pose.position.x), float(msg.pose.position.y), q_real,q_imag)
+        self.poses[agent_id] = (float(msg.pose.position.x), float(msg.pose.position.y), theta)
 
     # def neighbor_callback(self, agent_id: int, msg: RelativeNeighbors):
     #     self.measurement[agent_id] = {}
@@ -182,117 +164,176 @@ class PositionbasedTarget(Node):
 
     
     def posebearing_callback(self, agent_id: int, msg: RelativeNeighbors):
-        self.measurement[agent_id] = {}
+        self.b_ij[agent_id] = {}
         for n_j in msg.neighbors:
-            self.measurement[agent_id][n_j.neighbor_id] = [float(n_j.relative_bearing.x), float(n_j.relative_bearing.y)]
+            self.b_ij[agent_id][n_j.neighbor_id] = [float(n_j.relative_bearing.x), float(n_j.relative_bearing.y)]
 
     
-    # def beta_dot_world_ivp(self, t: float, beta: np.ndarray, be_i: np.ndarray, yaw_i: float) -> np.ndarray:
-    #     """
-    #     World-frame Step-3 dynamics:
-    #     beta_dot = -rho * (phi phi^T) be_i - (phi_perp phi_perp^T) beta
-    #     """
-    #     phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
-    #     phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
+    def beta_dot_world_ivp(self, beta, be_i, yaw_i):
+        """
+        World-frame Step-3 dynamics:
+        beta_dot = -rho * (phi phi^T) be_i - (phi_perp phi_perp^T) beta
+        """
+        phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
+        phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
 
-    #     P = np.outer(phi, phi)               # 2x2
-    #     Pperp = np.outer(phi_perp, phi_perp) # 2x2
+        p = np.outer(phi, phi)               # 2x2
+        Pperp = np.outer(phi_perp, phi_perp) # 2x2
 
-    #     beta = beta.reshape(2,)
-    #     return (-rho * (P @ be_i) - (Pperp @ beta)).reshape(2,)
+        beta = beta.reshape(2,)
+        return (-rho * (p @ be_i) - (Pperp @ beta)).reshape(2,)
 
 
-    # def integrate_beta(self, i: int, be_i: np.ndarray, yaw_i: float, dt: float) -> np.ndarray:
-    #     """
-    #     Integrate beta_i over one control period dt using solve_ivp.
-    #     """
-    #     beta0 = self.betai[i].astype(float)
+    def integrate_beta(self, i, be_i, yaw_i, dt) -> np.ndarray:
+        """
+        Integrate beta_i over one control period dt using solve_ivp.
+        """
+        beta0 = self.betai[i].astype(float)
 
-    #     sol = solve_ivp(
-    #         fun=self.beta_dot_world_ivp,
-    #         t_span=(0.0, dt),
-    #         y0=beta0,
-    #         args=(be_i, yaw_i),
-    #         method="RK45",
-    #         max_step=dt,
-    #         rtol=1e-6,
-    #         atol=1e-8,
-    #     )
+        # sol = solve_ivp(
+        #     fun=self.beta_dot_world_ivp,
+        #     t_span=(0.0, dt),
+        #     y0=beta0,
+        #     args=(be_i, yaw_i),
+        #     method="RK45",
+        #     max_step=dt,
+        #     rtol=1e-6,
+        #     atol=1e-8,
+        # )
+        sol = solve_ivp(
+        fun=lambda t, y: self.beta_dot_world_ivp(y, be_i, yaw_i),
+        t_span=(0.0, dt),
+        y0=beta0,
+        method="RK45",
+        max_step=dt,
+        rtol=1e-6,
+        atol=1e-8,
+        )
+        
+        if not sol.success:
+            self.get_logger().warn(f"solve_ivp failed for robot {i}: {sol.message}")
+            return beta0
 
-    #     if not sol.success:
-    #         self.get_logger().warn(f"solve_ivp failed for robot {i}: {sol.message}")
-    #         return beta0
-
-    #     return sol.y[:, -1]
+        return sol.y[:, -1]
 
     
     # ----------------- Timer: compute all b_ij and beta_ij -----------------
 
     def timer_callback(self):
-        #dt = self.period
-        if self.num_agents < 2:
-            return
+        dt = self.period
+
+        # Must have poses and bearings for all agents
+        for i in range(1, self.num_agents + 1):
+            if i not in self.poses:
+                return
+            if i not in self.b_ij:
+                return
+
+        # beta = np.zeros((self.num_agents, 2), dtype=float)
 
         for i in range(1, self.num_agents + 1):
-            if i not in self.yaws:
-                continue
+            # idx = i - 1
 
-            yaw_i = float(self.yaws[i])
+            yaw_i = self.poses[i][2]
+            phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
+            phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
 
-            # # Heading unit vectors in WORLD
-            # phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
-            # phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
+            # p = np.outer(phi, phi)
+            # Pperp = np.outer(phi_perp, phi_perp)
 
-            # Rotation BODY -> WORLD (for bearing direction)
-            R_plus = np.array(
-                [[math.cos(yaw_i), -math.sin(yaw_i)],
-                [math.sin(yaw_i),  math.cos(yaw_i)]],
-                dtype=float
-            )
-
-            # # Build b_ei in WORLD frame
-            # be_i = np.zeros(2, dtype=float)
+            be_i = np.zeros(2, dtype=float)
 
             for j in sorted(self.adj.get(i, [])):
-                key = (i, j)
-
-                # need bearing sigma_ij from vision
-                if key not in self.sigma_rel:
+                if j not in self.b_ij[i]:
                     continue
 
-                sigma_ij = float(self.sigma_rel[key])
+                b_ij_world = np.array(self.b_ij[i][j], dtype=float)
+                # b_ij_body = np.array(self.b_ij[i][j], dtype=float)
 
-                # bearing unit vector in BODY (camera frame assumed aligned with robot body x-axis)
-                b_ij_body = np.array([math.cos(sigma_ij), math.sin(sigma_ij)], dtype=float)
+                # # normalize (important)
+                # nb = np.linalg.norm(b_ij_body)
+                # if nb < 1e-9:
+                #     continue
+                # b_ij_body = b_ij_body / nb
 
-                # convert to WORLD
-                b_ij_world = R_plus @ b_ij_body
-                self.b_ij[key] = b_ij_world
+                # # rotate to world using yaw_i
+                # R_plus = rot2d(yaw_i)
+                # b_ij_world = R_plus @ b_ij_body
 
-            #     # desired bearing from YAML initial positions (constant)
-            #     if (i not in self.positions) or (j not in self.positions):
-            #         continue
 
-            #     d = self.positions[j] - self.positions[i]
-            #     norm_d = np.linalg.norm(d)
-            #     if norm_d < 1e-6:
-            #         continue
-            #     b_ij_star = d / norm_d
+                d = self.positions[j] - self.positions[i]
+                norm_d = np.linalg.norm(d)
+                if norm_d < 1e-6:
+                    continue
+                b_ij_star = d / norm_d
 
-            #     be_i += (b_ij_world - b_ij_star)
+                be_i += (b_ij_world - b_ij_star)
+                self.get_logger().info(f"Bearing Error between robot i={i} and robot j={j} is ={be_i}")
 
-            # # --- Step 3: integrate beta_i (WORLD frame) ---
-            # self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
+            # Step 3 integrate beta_i
+            self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
+            self.get_logger().info(f"for robot i={i}, beta_i={self.betai[i]}")
 
-            # # --- Step 4: compute control in WORLD frame using dot products ---
-            # v = kp * float(phi @ be_i) + ki * float(phi @ self.betai[i])
-            # w = kw * float(phi_perp @ be_i) + ki * float(phi_perp @ self.betai[i])
+            # beta_i = (p @ be_i) - (Pperp @ self.betai[i])
+            # beta[idx] = beta_i
 
-            # # Publish cmd_vel
-            # msg = Twist()
-            # msg.linear.x = float(v)
-            # msg.angular.z = float(w)
-            # self.pubs[i].publish(msg)
+            # Step 4 control (scalar projections)
+            v = (kp * (phi @ be_i)) + (ki * (phi @ self.betai[i]))
+            w = (kw * (phi_perp @ be_i)) + (ki * (phi_perp @ self.betai[i]))
+
+            cmd = Twist()
+            cmd.linear.x = float(v)
+            cmd.angular.z = float(w)
+            self.pubs[i].publish(cmd)
+
+
+    # def timer_callback(self):
+    #     dt = self.period
+    #     if self.num_agents < 2:
+    #         return
+
+    #     beta = np.zeros((self.num_agents,2))
+    #     for i in range(1, self.num_agents + 1):
+
+    #         # Heading unit vectors in WORLD
+    #         phi = np.array([math.cos(self.poses[i][2]), math.sin(self.poses[i][2])], dtype=float)
+    #         phi_perp = np.array([-math.sin(self.poses[i][2]), math.cos(self.poses[i][2])], dtype=float)
+    #         p = np.outer(phi, phi)                  # 2x2
+    #         Pperp = np.outer(phi_perp, phi_perp)    # 2x2
+
+    #         # Build b_ei in WORLD frame
+    #         be_i = np.zeros(2, dtype=float)
+
+    #         for j in sorted(self.adj.get(i, [])):
+
+    #             b_ij_world = self.b_ij [i][j] 
+
+    #             # desired bearing from YAML initial positions (constant)
+    #             if (i not in self.positions) or (j not in self.positions):
+    #                 continue
+
+    #             d = self.positions[j] - self.positions[i]
+    #             norm_d = np.linalg.norm(d)
+    #             if norm_d < 1e-6:
+    #                 continue
+    #             b_ij_star = d / norm_d
+
+    #             be_i += (b_ij_world - b_ij_star)
+
+    #         # --- Step 3: integrate beta_i (WORLD frame) ---
+    #         self.betai[i] = self.integrate_beta(i, be_i, self.poses[i][2], dt)
+
+    #         beta[i] = p @ be_i - Pperp @ self.betai[i]
+
+    #         # --- Step 4: compute control in WORLD frame using dot products ---
+    #         v = (kp * phi.T @ be_i) + (ki * phi.T @ beta[i])
+    #         w = (kw * phi_perp.T @ be_i) + (ki * phi_perp.T @ beta[i])
+
+    #         # Publish cmd_vel
+    #         msg = Twist()
+    #         msg.linear.x = float(v)
+    #         msg.angular.z = float(w)
+    #         self.pubs[i].publish(msg)
 
 
 
