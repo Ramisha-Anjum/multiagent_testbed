@@ -265,10 +265,7 @@ class PositionbasedTarget(Node):
             # Step 3 integrate beta_i
             # self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
 
-            self.betai[i] = self.betai[i] + self.betai_dot[i]
-
-            self.betai_dot[i] = (p @ be_i) - (Pperp @ self.betai[i])
-            self.get_logger().info(f"for robot t1 = 0i={i}, beta_i={self.betai[i]}")
+            
 
             # beta_i = (p @ be_i) - (Pperp @ self.betai[i])
             # beta[idx] = beta_i
@@ -276,6 +273,11 @@ class PositionbasedTarget(Node):
             # Step 4 control (scalar projections)
             v = (kp * (phi @ be_i)) + (ki * (phi @ self.betai[i]))
             w = (kw * (phi_perp @ be_i)) + (ki * (phi_perp @ self.betai[i]))
+
+            # Step 3 integrate beta_i
+            self.betai_dot[i] = (p @ be_i) - (Pperp @ self.betai[i])
+            self.betai[i] = self.betai[i] + self.betai_dot[i]*dt
+            self.get_logger().info(f"for robot t1 = 0i={i}, beta_i={self.betai[i]}")
 
             cmd = Twist()
             cmd.linear.x = float(v)
