@@ -132,10 +132,10 @@ class PositionbasedTarget(Node):
 
         
         self.betai: Dict[int, np.ndarray] = {i: np.zeros(2, dtype=float) for i in range(1, self.num_agents + 1)}
+        self.betai_dot: Dict[int, np.ndarray] = {i: np.zeros(2, dtype=float) for i in range(1, self.num_agents + 1)}
 
         # ---------------- Timer ----------------
         self.period = 0.05  # 20 Hz
-        self.t1 = 0
         self.timer = self.create_timer(self.period, self.timer_callback)
 
         self.get_logger().info("positionbased_target node started.")
@@ -171,52 +171,52 @@ class PositionbasedTarget(Node):
             self.b_ij[agent_id][n_j.neighbor_id] = [float(n_j.relative_bearing.x), float(n_j.relative_bearing.y)]
 
     
-    def beta_dot_world_ivp(self, beta, be_i, yaw_i):
-        """
-        World-frame Step-3 dynamics:
-        beta_dot = -rho * (phi phi^T) be_i - (phi_perp phi_perp^T) beta
-        """
-        phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
-        phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
+    # def beta_dot_world_ivp(self, beta, be_i, yaw_i):
+    #     """
+    #     World-frame Step-3 dynamics:
+    #     beta_dot = -rho * (phi phi^T) be_i - (phi_perp phi_perp^T) beta
+    #     """
+    #     phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
+    #     phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
 
-        p = np.outer(phi, phi)               # 2x2
-        Pperp = np.outer(phi_perp, phi_perp) # 2x2
+    #     p = np.outer(phi, phi)               # 2x2
+    #     Pperp = np.outer(phi_perp, phi_perp) # 2x2
 
-        beta = beta.reshape(2,)
-        return ((p @ be_i) - (Pperp @ beta))
+    #     beta = beta.reshape(2,)
+    #     return ((p @ be_i) - (Pperp @ beta))
 
 
-    def integrate_beta(self, i, be_i, yaw_i, dt) -> np.ndarray:
-        """
-        Integrate beta_i over one control period dt using solve_ivp.
-        """
-        beta0 = self.betai[i].astype(float)
+    # def integrate_beta(self, i, be_i, yaw_i, dt) -> np.ndarray:
+    #     """
+    #     Integrate beta_i over one control period dt using solve_ivp.
+    #     """
+    #     beta0 = self.betai[i].astype(float)
 
-        # sol = solve_ivp(
-        #     fun=self.beta_dot_world_ivp,
-        #     t_span=(0.0, dt),
-        #     y0=beta0,
-        #     args=(be_i, yaw_i),
-        #     method="RK45",
-        #     max_step=dt,
-        #     rtol=1e-6,
-        #     atol=1e-8,
-        # )
-        sol = solve_ivp(
-        fun=lambda t, y: self.beta_dot_world_ivp(y, be_i, yaw_i),
-        t_span=(self.t1, dt),
-        y0=beta0,
-        method="RK45",
-        max_step=dt,
-        rtol=1e-6,
-        atol=1e-8,
-        )
+    #     # sol = solve_ivp(
+    #     #     fun=self.beta_dot_world_ivp,
+    #     #     t_span=(0.0, dt),
+    #     #     y0=beta0,
+    #     #     args=(be_i, yaw_i),
+    #     #     method="RK45",
+    #     #     max_step=dt,
+    #     #     rtol=1e-6,
+    #     #     atol=1e-8,
+    #     # )
+    #     sol = solve_ivp(
+    #     fun=lambda t, y: self.beta_dot_world_ivp(y, be_i, yaw_i),
+    #     t_span=(t1, dt),
+    #     y0=beta0,
+    #     method="RK45",
+    #     max_step=dt,
+    #     rtol=1e-6,
+    #     atol=1e-8,
+    #     )
         
-        if not sol.success:
-            self.get_logger().warn(f"solve_ivp failed for robot {i}: {sol.message}")
-            return beta0
+    #     if not sol.success:
+    #         self.get_logger().warn(f"solve_ivp failed for robot {i}: {sol.message}")
+    #         return beta0
 
-        return sol.y[:, -1]
+    #     return sol.y[:, -1]
 
     
     # ----------------- Timer: compute all b_ij and beta_ij -----------------
@@ -240,8 +240,8 @@ class PositionbasedTarget(Node):
             phi = np.array([math.cos(yaw_i), math.sin(yaw_i)], dtype=float)
             phi_perp = np.array([-math.sin(yaw_i), math.cos(yaw_i)], dtype=float)
 
-            # p = np.outer(phi, phi)
-            # Pperp = np.outer(phi_perp, phi_perp)
+            p = np.outer(phi, phi)
+            Pperp = np.outer(phi_perp, phi_perp)
 
             be_i = np.zeros(2, dtype=float)
 
@@ -263,7 +263,11 @@ class PositionbasedTarget(Node):
                 self.get_logger().info(f"Bearing Error between robot i={i} and robot j={j} is ={be_i}")
 
             # Step 3 integrate beta_i
-            self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
+            # self.betai[i] = self.integrate_beta(i, be_i, yaw_i, dt)
+
+            self.betai[i] = self.betai[i] + self.betai_dot[i]
+
+            self.betai_dot[i] = (p @ be_i) - (Pperp @ self.betai[i])
             self.get_logger().info(f"for robot t1 = 0i={i}, beta_i={self.betai[i]}")
 
             # beta_i = (p @ be_i) - (Pperp @ self.betai[i])
@@ -277,7 +281,7 @@ class PositionbasedTarget(Node):
             cmd.linear.x = float(v)
             cmd.angular.z = float(w)
             self.pubs[i].publish(cmd)
-            self.t1 = self.t1 + dt
+            # t1 = t1 + dt
 
 
     # def timer_callback(self):
